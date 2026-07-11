@@ -4,7 +4,6 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import ma.hibernate.model.Phone;
@@ -32,19 +31,14 @@ public class PhoneDaoImpl extends AbstractDao implements PhoneDao {
             CriteriaBuilder cb = session.getCriteriaBuilder();
             CriteriaQuery<Phone> query = cb.createQuery(Phone.class);
             Root<Phone> root = query.from(Phone.class);
-            List<Predicate> predicates = new ArrayList<>();
-            for (Map.Entry<String, String[]> entry : params.entrySet()) {
-                String key = entry.getKey();
-                String[] values = entry.getValue();
-                if (values == null || values.length == 0) {
-                    continue;
-                }
-                CriteriaBuilder.In<String> inPredicate = cb.in(root.get(key));
-                for (String value : values) {
-                    inPredicate.value(value);
-                }
-                predicates.add(inPredicate);
-            }
+            List<Predicate> predicates = params.entrySet().stream()
+                    .filter(entry -> entry.getValue() != null && entry.getValue().length > 0)
+                    .map(entry -> {
+                        CriteriaBuilder.In<String> inPredicate = cb.in(root.get(entry.getKey()));
+                        java.util.Arrays.stream(entry.getValue()).forEach(inPredicate::value);
+                        return inPredicate;
+                    })
+                    .collect(java.util.stream.Collectors.toList());
             query.where(predicates.toArray(new Predicate[0]));
             return session.createQuery(query).getResultList();
         }
